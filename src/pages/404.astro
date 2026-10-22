@@ -1,0 +1,31 @@
+---
+import RadarLayout from '../layouts/RadarLayout.astro';
+import { Icon } from 'astro-icon/components';
+import { getHomePermalink } from '../utils/permalinks';
+---
+
+<RadarLayout
+  title="Nyasar, Mas? — DeadlineRadar"
+  description="Halaman yang kamu cari tidak ada di papan DeadlineRadar. Balik ke radar — deadline tidak nunggu."
+>
+  <a class="lewati" href={getHomePermalink()}>Lompat ke papan radar</a>
+  <main>
+    <section class="panggung" aria-labelledby="judul-404">
+      <div class="bungkus">
+        <article class="karcis" style="max-width: 640px; margin-inline: auto; text-align: center">
+          <Icon name="ticket-perforated" aria-hidden="true" style="width: 64px; height: 64px; margin: 0 auto 16px; color: var(--muted)" />
+          <span class="stempel">Karcis sobek</span>
+          <h1 class="karcis-raksasa" id="judul-404" style="font-size: clamp(2.2rem, 8vw, 4rem)">Nyasar, Mas?</h1>
+          <p class="sub-radar" style="margin-inline: auto">
+            Halaman yang kamu cari tidak nempel di papan ini. Tenang — deadline yang asli masih aman di radar.
+          </p>
+          <div class="aksi-karcis" style="justify-content: center">
+            <a class="tombol aksen" href={getHomePermalink()}>
+              <Icon name="bi:radar" aria-hidden="true" /><span>Balik ke radar</span>
+            </a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</RadarLayout>

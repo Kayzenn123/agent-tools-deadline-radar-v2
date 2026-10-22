@@ -1,0 +1,455 @@
+---
+import RadarLayout from '../layouts/RadarLayout.astro';
+import { Icon } from 'astro-icon/components';
+import deadlines from '../data/deadlines.json';
+
+interface Deadline {
+  id: string;
+  cat: 'lomba' | 'hackathon' | 'beasiswa';
+  profils: string[];
+  nama: string;
+  penyelenggara: string;
+  deadline: string;
+  biaya: string;
+  profil: string;
+  kategori: string;
+  url: string;
+  sumber: string;
+  unverified: boolean;
+}
+
+const items = deadlines as Deadline[];
+const tengahMalam = new Date();
+tengahMalam.setHours(0, 0, 0, 0);
+const parseTanggal = (s: string) => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const sisaHari = (s: string) => Math.round((parseTanggal(s).getTime() - tengahMalam.getTime()) / 86400000);
+const stempelUntuk = (n: number) =>
+  n < 0 ? 'Sudah tutup' : n === 0 ? 'Hari terakhir' : n === 1 ? 'Tutup besok' : `Tutup ${n} hari`;
+const formatTanggal = (s: string) =>
+  new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parseTanggal(s));
+
+const ikonKategori: Record<string, string> = {
+  lomba: 'bi:trophy',
+  hackathon: 'bi:code-slash',
+  beasiswa: 'bi:mortarboard',
+};
+const labelKategori: Record<string, string> = { lomba: 'Lomba', hackathon: 'Hackathon', beasiswa: 'Beasiswa' };
+const labelProfil: Record<string, string> = { pelajar: 'Pelajar', mahasiswa: 'Mahasiswa', umum: 'Umum' };
+
+const akanDatang = items.filter((d) => sisaHari(d.deadline) >= 0);
+const raksasa = akanDatang[0] ?? items[0];
+const dalamRentang = (maks: number) => akanDatang.filter((d) => sisaHari(d.deadline) <= maks);
+const pita = akanDatang.slice(0, 12);
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'DeadlineRadar',
+  description: 'Radar deadline lomba, beasiswa, dan hackathon Indonesia.',
+  inLanguage: 'id-ID',
+};
+---
+
+<RadarLayout
+  title="DeadlineRadar — Radar Deadline Lomba, Beasiswa & Hackathon"
+  description="Radar deadline lomba, beasiswa, dan hackathon Indonesia. Karcis paling mendesak menempel paling atas — jangan sampai telat daftar."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <a class="lewati" href="#sumbu">Lompat ke daftar karcis</a>
+
+  <header class="papan-atas">
+    <div class="bungkus">
+      <a class="merek" href="#atas" aria-label="DeadlineRadar — kembali ke atas">
+        <Icon name="radar-sweep" />
+        <span>DeadlineRadar</span>
+      </a>
+      <span class="spasi"></span>
+      <span class="hitung-simpan">
+        <Icon name="bi:bookmark-fill" aria-hidden="true" />
+        <span id="hitung-simpan-angka">0</span>
+        <span class="sr-only">karcis tersimpan</span>
+      </span>
+      <button class="tombol-gerak" id="tombol-gerak" type="button" aria-pressed="true">
+        <Icon name="bi:lightning" aria-hidden="true" />
+        <span id="tombol-gerak-teks">Gerak: nyala</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="banner-mendesak" id="banner-mendesak" hidden role="status">
+    <div class="bungkus">
+      <Icon name="bi:alarm" aria-hidden="true" />
+      <span id="banner-mendesak-teks"></span>
+      <button type="button" id="banner-mendesak-tutup" aria-label="Tutup pengingat">
+        <Icon name="bi:x-lg" aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+
+  <main id="atas">
+    <!-- 0%: karcis raksasa paling mendesak, tanpa hero, tanpa sambutan -->
+    <section class="panggung" aria-labelledby="judul-radar">
+      <div class="bungkus">
+        <h1 class="judul-radar" id="judul-radar">
+          <span class="kata" id="kata-radar" title="ketuk lima kali">RADAR</span>
+          <span class="kata">DEADLINE</span>
+        </h1>
+        <p class="sub-radar">
+          Mas, Mbak — ini papan pantau deadline lomba, beasiswa, dan hackathon se-Indonesia. Yang paling
+          mepet nempel paling atas. Jangan sampai nangis di grup angkatan.
+        </p>
+
+        <article
+          class="karcis"
+          data-id={raksasa.id}
+          data-cat={raksasa.cat}
+          data-profils={raksasa.profils.join(',')}
+          data-deadline={raksasa.deadline}
+          data-nama={raksasa.nama}
+          data-penyelenggara={raksasa.penyelenggara}
+          data-biaya={raksasa.biaya}
+          data-kategori={raksasa.kategori}
+          data-profil={raksasa.profil}
+          data-url={raksasa.url}
+          data-sumber={raksasa.sumber}
+          data-unverified={raksasa.unverified ? '1' : '0'}
+        >
+          <span class="stempel" data-stempel>{stempelUntuk(sisaHari(raksasa.deadline))}</span>
+          <h2 class="karcis-raksasa">{raksasa.nama}</h2>
+          <div class="meta">
+            <span><Icon name="bi:calendar-event" aria-hidden="true" />{formatTanggal(raksasa.deadline)}</span>
+            <span
+              ><Icon name={ikonKategori[raksasa.cat]} aria-hidden="true" />{raksasa.kategori}</span
+            >
+            <span
+              ><Icon name="bi:ticket-perforated" aria-hidden="true" />{
+                raksasa.biaya ? raksasa.biaya : 'cek situs resmi'
+              }</span
+            >
+            {raksasa.unverified && <span class="label-verifikasi"><Icon name="bi:exclamation-triangle" aria-hidden="true" />belum terverifikasi</span>}
+          </div>
+          <div class="aksi-karcis">
+            <button class="tombol aksen" type="button" data-aksi="simpan" aria-pressed="false">
+              <Icon name="bi:bookmark" aria-hidden="true" /><span>Simpan karcis</span>
+            </button>
+            <button class="tombol sekunder" type="button" data-aksi="detil">
+              <Icon name="bi:info-circle" aria-hidden="true" /><span>Lihat detil</span>
+            </button>
+            <a class="tombol" href={raksasa.url} target="_blank" rel="noopener noreferrer">
+              <Icon name="bi:link-45deg" aria-hidden="true" /><span>Situs resmi</span>
+            </a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div class="marquee" aria-label="Daftar deadline mendesak berjalan">
+      <div class="rel" data-marquee data-arah="-1">
+        {
+          pita.map((d) => (
+            <span class="item">
+              <Icon name="radar-sweep" aria-hidden="true" />
+              {d.nama} <span class="hari">{stempelUntuk(sisaHari(d.deadline))}</span>
+            </span>
+          ))
+        }
+        {
+          pita.map((d) => (
+            <span class="item" aria-hidden="true">
+              <Icon name="radar-sweep" aria-hidden="true" />
+              {d.nama} <span class="hari">{stempelUntuk(sisaHari(d.deadline))}</span>
+            </span>
+          ))
+        }
+      </div>
+    </div>
+    <div class="marquee band-bawah" aria-hidden="true">
+      <div class="rel" data-marquee data-arah="1">
+        {
+          [...pita].reverse().map((d) => (
+            <span class="item">
+              <Icon name="bi:megaphone" aria-hidden="true" />
+              {d.nama} <span class="hari">{stempelUntuk(sisaHari(d.deadline))}</span>
+            </span>
+          ))
+        }
+        {
+          [...pita].reverse().map((d) => (
+            <span class="item" aria-hidden="true">
+              <Icon name="bi:megaphone" aria-hidden="true" />
+              {d.nama} <span class="hari">{stempelUntuk(sisaHari(d.deadline))}</span>
+            </span>
+          ))
+        }
+      </div>
+    </div>
+    <div class="kendali-marquee bungkus">
+      <button class="chip" type="button" id="tombol-jeda-marquee" aria-pressed="false">
+        <Icon name="bi:pause" aria-hidden="true" /><span>Jeda pita berjalan</span>
+      </button>
+    </div>
+
+    <!-- 25%: pemindaian radar — pan horizontal 3 panel -->
+    <section class="bagian" id="pindai" aria-labelledby="judul-pindai">
+      <div class="bungkus">
+        <div class="kepala-bagian">
+          <h2 id="judul-pindai">Pindai radar</h2>
+          <span class="coretan">tiga jangkauan — geser, atau pakai tombol di bawah</span>
+        </div>
+        <div class="pindai-viewport" data-pindai>
+          <div class="pindai-rel" data-pindai-rel>
+            {
+              [
+                { judul: 'Tujuh hari ke depan', coretan: 'yang napasnya sudah ngos-ngosan', daftar: dalamRentang(7) },
+                { judul: 'Tiga puluh hari ke depan', coretan: 'masih sempat siapin berkas', daftar: dalamRentang(30) },
+                { judul: 'Semua yang terpantau', coretan: 'satu papan, tidak ada yang lolos', daftar: akanDatang },
+              ].map((panel) => (
+                <div class="panel">
+                  <div class="panel-dalam" data-panel-dalam>
+                    <h3>{panel.judul}</h3>
+                    <p class="coretan">{panel.coretan}</p>
+                    {panel.daftar.length === 0 && (
+                      <p class="coretan">kosong, Mas — aman untuk jangkauan ini.</p>
+                    )}
+                    {panel.daftar.slice(0, 5).map((d) => (
+                      <button class="mini-karcis" type="button" data-buka-detil={d.id}>
+                        <span class="ikon"><Icon name={ikonKategori[d.cat]} aria-hidden="true" /></span>
+                        <span class="nama">{d.nama}</span>
+                        <span class="kapan">{stempelUntuk(sisaHari(d.deadline))}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+        <div class="kendali-pindai">
+          <button class="tombol sekunder" type="button" id="pindai-sebelum" aria-label="Panel sebelumnya">
+            <Icon name="bi:arrow-left" aria-hidden="true" /><span> Mundur</span>
+          </button>
+          <button class="tombol sekunder" type="button" id="pindai-lanjut" aria-label="Panel berikutnya">
+            <span>Maju </span><Icon name="bi:arrow-right" aria-hidden="true" />
+          </button>
+          <span class="posisi" id="pindai-posisi" aria-live="polite">panel 1 dari 3</span>
+        </div>
+
+        <h3 class="kepala-bagian" style="margin-top: 40px">
+          <span class="coretan">yang segera tutup — sentil ke kiri/kanan</span>
+        </h3>
+        <div class="flick-strip" data-flick aria-label="Strip karcis yang bisa digeser">
+          {
+            dalamRentang(7).map((d) => (
+              <button class="mini-karcis" type="button" data-buka-detil={d.id}>
+                <span class="ikon"><Icon name={ikonKategori[d.cat]} aria-hidden="true" /></span>
+                <span class="nama">{d.nama}</span>
+                <span class="kapan">{stempelUntuk(sisaHari(d.deadline))}</span>
+              </button>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- 50–75%: sumbu waktu tegak -->
+    <section class="bagian" id="sumbu" aria-labelledby="judul-sumbu">
+      <div class="bungkus">
+        <div class="kepala-bagian">
+          <h2 id="judul-sumbu">Sumbu waktu</h2>
+          <span class="coretan">paling mepet di atas — kayak antrean warteg jam makan siang</span>
+        </div>
+
+        <div class="panel-filter" role="search" aria-label="Saring karcis deadline">
+          <div class="baris-filter">
+            <label class="cari">
+              <Icon name="bi:search" aria-hidden="true" />
+              <input
+                type="search"
+                id="input-cari"
+                placeholder="Cari nama lomba, penyelenggara…"
+                autocomplete="off"
+                aria-label="Cari deadline"
+              />
+            </label>
+            <div class="grup-chip" role="group" aria-label="Kategori">
+              <span class="judul-grup">jenis:</span>
+              <button class="chip" type="button" data-filter-kat="semua" aria-pressed="true">Semua</button>
+              <button class="chip" type="button" data-filter-kat="lomba" aria-pressed="false"><Icon name="bi:trophy" aria-hidden="true" />Lomba</button>
+              <button class="chip" type="button" data-filter-kat="hackathon" aria-pressed="false"><Icon name="bi:code-slash" aria-hidden="true" />Hackathon</button>
+              <button class="chip" type="button" data-filter-kat="beasiswa" aria-pressed="false"><Icon name="bi:mortarboard" aria-hidden="true" />Beasiswa</button>
+            </div>
+            <div class="grup-chip" role="group" aria-label="Profil peserta">
+              <span class="judul-grup">buat:</span>
+              <button class="chip" type="button" data-filter-profil="semua" aria-pressed="true">Semua</button>
+              <button class="chip" type="button" data-filter-profil="pelajar" aria-pressed="false">Pelajar</button>
+              <button class="chip" type="button" data-filter-profil="mahasiswa" aria-pressed="false">Mahasiswa</button>
+              <button class="chip" type="button" data-filter-profil="umum" aria-pressed="false">Umum</button>
+            </div>
+            <div class="grup-chip" role="group" aria-label="Rentang waktu">
+              <span class="judul-grup">tutup:</span>
+              <button class="chip" type="button" data-filter-rentang="7" aria-pressed="false">≤ 7 hari</button>
+              <button class="chip" type="button" data-filter-rentang="30" aria-pressed="false">≤ 30 hari</button>
+              <button class="chip" type="button" data-filter-rentang="semua" aria-pressed="true">Semua</button>
+            </div>
+            <span class="hasil-hitung" id="hasil-hitung" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="sumbu" data-sumbu>
+          <svg class="garis-sumbu-svg" viewBox="0 0 14 1000" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="7" y1="0" x2="7" y2="1000" stroke="var(--accent)" stroke-width="4" data-garis-sumbu />
+          </svg>
+          <div class="daftar-karcis" id="daftar-karcis">
+            {
+              items.map((d) => {
+                const n = sisaHari(d.deadline);
+                return (
+                  <article
+                    class="karcis karcis-item"
+                    data-id={d.id}
+                    data-cat={d.cat}
+                    data-profils={d.profils.join(',')}
+                    data-deadline={d.deadline}
+                    data-nama={d.nama}
+                    data-penyelenggara={d.penyelenggara}
+                    data-biaya={d.biaya}
+                    data-kategori={d.kategori}
+                    data-profil={d.profil}
+                    data-url={d.url}
+                    data-sumber={d.sumber}
+                    data-unverified={d.unverified ? '1' : '0'}
+                    data-sisa={String(n)}
+                    tabindex="0"
+                    role="button"
+                    aria-label={`${d.nama}, ${stempelUntuk(n)}. Tekan Enter untuk detil.`}
+                  >
+                    <span class="stempel" data-stempel>{stempelUntuk(n)}</span>
+                    <h3 class="nama">{d.nama}</h3>
+                    <p class="penyelenggara">{d.penyelenggara || 'penyelenggara tidak tercantum di sumber'}</p>
+                    <button
+                      class="simpan"
+                      type="button"
+                      data-aksi="simpan"
+                      aria-pressed="false"
+                      aria-label={`Simpan karcis ${d.nama}`}
+                    >
+                      <Icon name="bi:bookmark" aria-hidden="true" />
+                    </button>
+                    <div class="baris-bawah">
+                      <span><Icon name="bi:calendar-event" aria-hidden="true" />{formatTanggal(d.deadline)}</span>
+                      <span><Icon name={ikonKategori[d.cat]} aria-hidden="true" />{labelKategori[d.cat]}</span>
+                      <span
+                        ><Icon name="bi:ticket-perforated" aria-hidden="true" />{
+                          d.biaya ? d.biaya : 'cek situs resmi'
+                        }</span
+                      >
+                      {d.profils.length > 0 && (
+                        <span><Icon name="bi:flag" aria-hidden="true" />{d.profils.map((p) => labelProfil[p]).join(', ')}</span>
+                      )}
+                      {d.unverified && (
+                        <span class="label-verifikasi"><Icon name="bi:exclamation-triangle" aria-hidden="true" />belum terverifikasi</span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            }
+          </div>
+
+          <div class="keadaan" id="keadaan-kosong" hidden>
+            <Icon name="ticket-perforated" aria-hidden="true" />
+            <h3>Karcisnya ludes, Mas.</h3>
+            <p>
+              Tidak ada deadline yang cocok dengan saringanmu. Coba longgarkan jenis atau rentangnya, atau cari
+              dengan kata lain.
+            </p>
+            <button class="tombol sekunder" type="button" id="tombol-reset-saring">
+              <Icon name="bi:arrow-left" aria-hidden="true" /><span>Kembalikan saringan</span>
+            </button>
+          </div>
+
+          <div class="keadaan" id="keadaan-galat" hidden>
+            <Icon name="bi:emoji-frown" aria-hidden="true" />
+            <h3>Laci penyimpan macet, Mas.</h3>
+            <p>
+              Karcis favorit tidak bisa disimpan di browser ini. Datanya aman — coba lagi nanti, atau pakai
+              browser lain.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 100%: ekspor + lapor -->
+  <footer class="kaki" id="lapor">
+    <div class="bungkus">
+      <h2>Bawa pulang karcisnya</h2>
+      <p class="coretan">unduh semua deadline, atau salin tautannya — gratis, tidak pakai antre</p>
+      <div class="aksi-karcis">
+        <button class="tombol sekunder" type="button" id="tombol-ics">
+          <Icon name="bi:calendar-event" aria-hidden="true" /><span>Unduh ICS</span>
+        </button>
+        <button class="tombol sekunder" type="button" id="tombol-csv">
+          <Icon name="bi:file-earmark-text" aria-hidden="true" /><span>Unduh CSV</span>
+        </button>
+        <button class="tombol sekunder" type="button" id="tombol-salin-tautan">
+          <Icon name="bi:link-45deg" aria-hidden="true" /><span>Salin tautan halaman</span>
+        </button>
+        <button class="tombol sekunder" type="button" id="tombol-lapor">
+          <Icon name="bi:megaphone" aria-hidden="true" /><span>Salin format lapor deadline</span>
+        </button>
+      </div>
+      <p class="coretan" id="pesan-aksi" role="status" aria-live="polite" style="margin-top: 16px"></p>
+      <div class="kredit">
+        <span>Data dari riset 22 Oktober 2026 — 19 deadline.</span>
+        <span>Yang berlabel "belum terverifikasi" wajib cek ulang ke panitia.</span>
+        <span>DeadlineRadar — dijaga Pak Raden.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Lembar detil -->
+  <div class="latar-lembar" id="latar-lembar" hidden></div>
+  <aside class="lembar" id="lembar" role="dialog" aria-modal="true" aria-labelledby="lembar-judul" hidden>
+    <button class="tutup-lembar" type="button" id="lembar-tutup" aria-label="Tutup detil">
+      <Icon name="bi:x-lg" aria-hidden="true" />
+    </button>
+    <span class="stempel" id="lembar-stempel"></span>
+    <h2 id="lembar-judul"></h2>
+    <p class="coretan" id="lembar-penyelenggara" style="font-family: var(--font-accent); color: var(--muted)"></p>
+    <dl>
+      <dt>Batas akhir</dt><dd id="lembar-tanggal"></dd>
+      <dt>Jenis</dt><dd id="lembar-jenis"></dd>
+      <dt>Untuk</dt><dd id="lembar-profil"></dd>
+      <dt>Biaya</dt><dd id="lembar-biaya"></dd>
+      <dt>Status data</dt><dd id="lembar-verifikasi"></dd>
+    </dl>
+    <div class="aksi-karcis">
+      <a class="tombol aksen" id="lembar-situs" href="#" target="_blank" rel="noopener noreferrer">
+        <Icon name="bi:link-45deg" aria-hidden="true" /><span>Situs resmi</span>
+      </a>
+      <button class="tombol sekunder" type="button" id="lembar-simpan">
+        <Icon name="bi:bookmark" aria-hidden="true" /><span>Simpan karcis</span>
+      </button>
+      <button class="tombol sekunder" type="button" id="lembar-ics">
+        <Icon name="bi:calendar-event" aria-hidden="true" /><span>ICS</span>
+      </button>
+      <button class="tombol sekunder" type="button" id="lembar-salin">
+        <Icon name="bi:link-45deg" aria-hidden="true" /><span>Salin tautan</span>
+      </button>
+    </div>
+    <p class="sumber" id="lembar-sumber"></p>
+  </aside>
+
+  <div class="hujan" id="hujan" aria-hidden="true"></div>
+
+  <script>
+    import { initApp } from '../scripts/app.js';
+    initApp();
+  </script>
+</RadarLayout>
